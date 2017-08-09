@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Best FaceRecognition</title>
+</head>
+<body>
+<video id="video" width="640" height="480" autoplay></video>
+<canvas id="canvas" width="640" height="480"></canvas>
+<br>
+<input type="text" id="nombre"/>
+<button id="snap">Tirar foto</button>
+<button id="recognize">Reconocer persona</button>
+<button id="add">Agregar cara</button>
+
+<p id="show"></p>
+
+<script>
+    var video = document.getElementById('video');
+    var show = document.getElementById("show");
+    // Get access to the camera!
+    if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        // Not adding `{ audio: true }` since we only want video now
+        navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+            video.src = window.URL.createObjectURL(stream);
+            video.play();
+            var canvas = document.getElementById('canvas');
+            var context = canvas.getContext('2d');
+
+            // Trigger photo take
+            document.getElementById("snap").addEventListener("click", function() {
+                context.drawImage(video, 0, 0, 640, 480);
+                show.innerHTML = "";
+            });
+            document.getElementById("recognize").addEventListener("click", function(){
+               var image = canvas.toDataURL("image/jpeg");
+               var payload = {
+                    image: image,
+               };
+               fetch("/recognize",
+                {
+                    method: "POST",
+                    body: JSON.stringify( payload )
+                })
+                .then(function(res){ return res.json(); })
+                .then(function(data){ if(data.hasOwnProperty("Errors")){
+                    show.innerHTML = data.Errors[0].Message;
+                }else{
+                    function f(image){
+                        return image.candidates[0].subject_id
+                    }
+                    show.innerHTML = data.images.map(f).join(", ");
+                    window.image = data;
+                } });
+            });
+            document.getElementById("add").addEventListener("click", function () {
+                var nombre = document.querySelector("#nombre").value;
+                var image = canvas.toDataURL("image/jpeg");
+               var payload = {
+                    image: image,
+                    subject_id: nombre,
+               };
+               fetch("/enroll",
+                {
+                    method: "POST",
+                    body: JSON.stringify( payload )
+                })
+                .then(function(res){ return res.json(); })
+                .then(function(data){ window.image = data; alert("Persona agregada.") })
+            });
+        });
+    }
+
+</script>
+</body>
+</html>
